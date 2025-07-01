@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Cookie Clicker Game with Reset</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin-top: 50px;
+    }
+    button {
+      font-size: 28px;
+      padding: 20px 50px;
+      cursor: pointer;
+      margin: 10px;
+      background-color: #d2691e;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      box-shadow: 0 5px #a0522d;
+      transition: background-color 0.3s;
+    }
+    button:active {
+      box-shadow: 0 2px #a0522d;
+      transform: translateY(3px);
+    }
+    button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+    #score {
+      font-size: 36px;
+      margin-top: 20px;
+      color: green;
+    }
+    #message {
+      margin-top: 15px;
+      font-size: 20px;
+      color: blue;
+      min-height: 25px;
+    }
+    #workers {
+      margin-top: 30px;
+      font-size: 20px;
+      color: purple;
+    }
+    #store {
+      margin-top: 30px;
+      border: 2px solid #d2691e;
+      border-radius: 10px;
+      padding: 20px;
+      display: none;
+      background-color: #fff8dc;
+    }
+    .store-item {
+      margin: 10px;
+      padding: 10px;
+      border: 1px solid #a0522d;
+      border-radius: 5px;
+      background-color: white;
+    }
+    .store-item button {
+      font-size: 16px;
+      padding: 8px 15px;
+    }
+    #toggleStore {
+      font-size: 18px;
+      padding: 10px 20px;
+      background-color: #8b4513;
+    }
+    #redeemCode {
+      margin-top: 20px;
+    }
+    #codeInput {
+      font-size: 18px;
+      padding: 8px;
+      width: 200px;
+    }
+    #redeemButton {
+      font-size: 18px;
+      padding: 8px 15px;
+      background-color: #4CAF50;
+      box-shadow: 0 3px #45a049;
+    }
+    #resetButton {
+      font-size: 18px;
+      padding: 8px 15px;
+      background-color: #f44336;
+      box-shadow: 0 3px #d32f2f;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Cookie Clicker Game</h1>
+  
+  <button id="cookieButton">Cookie 🍪</button>
+  
+  <div id="score">Score: 0</div>
+
+  <div id="message"></div>
+
+  <div id="workers">Workers unlocked: None</div>
+  
+  <button id="toggleStore">Toggle Store</button>
+  
+  <div id="store">
+    <h2>Store</h2>
+    <div id="storeItems"></div>
+  </div>
+
+  <div id="redeemCode">
+    <input id="codeInput" type="text" placeholder="Enter redeem code">
+    <button id="redeemButton">Redeem</button>
+  </div>
+
+  <button id="resetButton">Reset Progress</button>
+  
+  <script>
+    // Game variables
+    let score = 0;
+    
+    // DOM elements
+    const button = document.getElementById('cookieButton');
+    const scoreDisplay = document.getElementById('score');
+    const message = document.getElementById('message');
+    const workersDiv = document.getElementById('workers');
+    const storeItemsDiv = document.getElementById('storeItems');
+    const storeDiv = document.getElementById('store');
+    const toggleStoreBtn = document.getElementById('toggleStore');
+    const codeInput = document.getElementById('codeInput');
+    const redeemButton = document.getElementById('redeemButton');
+    const resetButton = document.getElementById('resetButton');
+
+    // Workers data
+    let workers = {
+      miner: { 
+        name: "Miner", 
+        unlocked: false, 
+        rate: 1, 
+        cost: 10,
+        description: "Digs up cookies from the earth"
+      },
+      cursor: { 
+        name: "Cursor", 
+        unlocked: false, 
+        rate: 2, 
+        cost: 50,
+        description: "Automatically clicks for you"
+      },
+      farmer: { 
+        name: "Farmer", 
+        unlocked: false, 
+        rate: 5, 
+        cost: 100,
+        description: "Grows cookie crops"
+      },
+      grandma: { 
+        name: "Grandma", 
+        unlocked: false, 
+        rate: 10, 
+        cost: 500,
+        description: "Bakes cookies with love"
+      },
+      factory: { 
+        name: "Factory", 
+        unlocked: false, 
+        rate: 20, 
+        cost: 2000,
+        description: "Mass produces cookies"
+      }
+    };
+
+    // Redeem codes
+    const redeemCodes = {
+      "COOKIE100": { score: 100, message: "100 free cookies added!" },
+      "MINERFREE": { worker: "miner", message: "Free Miner unlocked!" },
+      "BOOST500": { score: 500, message: "500 cookie boost applied!" },
+      "UNLOCKALL": { 
+        workers: ["miner", "cursor", "farmer"], 
+        message: "3 workers unlocked!" 
+      },
+      "SECRETCODE": { score: 1000, worker: "cursor", message: "Secret reward unlocked!" }
+    };
+
+    // Used codes storage
+    let usedCodes = JSON.parse(localStorage.getItem('usedCodes')) || [];
+
+    // Initialize the game
+    function initGame() {
+      updateScore();
+      updateWorkersDisplay();
+      updateStoreButtons();
+      
+      // Load saved score if available
+      const savedScore = localStorage.getItem('cookieScore');
+      if (savedScore) {
+        score = parseInt(savedScore);
+        updateScore();
+      }
+      
+      // Load unlocked workers if available
+      const savedWorkers = localStorage.getItem('cookieWorkers');
+      if (savedWorkers) {
+        const parsedWorkers = JSON.parse(savedWorkers);
+        for (const workerId in parsedWorkers) {
+          if (workers[workerId]) {
+            workers[workerId].unlocked = parsedWorkers[workerId].unlocked;
+          }
+        }
+        updateWorkersDisplay();
+        updateStoreButtons();
+      }
+    }
+
+    // Reset game progress
+    function resetProgress() {
+      if (confirm("Are you sure you want to reset all progress? This cannot be undone!")) {
+        // Reset score
+        score = 0;
+        
+        // Reset workers
+        for (const workerId in workers) {
+          workers[workerId].unlocked = false;
+        }
+        
+        // Reset used codes
+        usedCodes = [];
+        localStorage.removeItem('usedCodes');
+        
+        // Save reset state
+        saveGame();
+        
+        // Update display
+        updateScore();
+        updateWorkersDisplay();
+        updateStoreButtons();
+        
+        showMessage("Game progress has been reset", "green");
+      }
+    }
+
+    // Event listeners
+    button.addEventListener('click', () => {
+      score++;
+      updateScore();
+      saveGame();
+    });
+
+    toggleStoreBtn.addEventListener('click', () => {
+      if (storeDiv.style.display === 'none' || storeDiv.style.display === '') {
+        storeDiv.style.display = 'inline-block';
+        toggleStoreBtn.textContent = 'Hide Store';
+      } else {
+        storeDiv.style.display = 'none';
+        toggleStoreBtn.textContent = 'Show Store';
+      }
+    });
+
+    redeemButton.addEventListener('click', () => {
+      const code = codeInput.value.trim().toUpperCase();
+      
+      if (usedCodes.includes(code)) {
+        showMessage("This code has already been used!", "red");
+        codeInput.value = "";
+        return;
+      }
+      
+      if (redeemCodes[code]) {
+        const reward = redeemCodes[code];
+        let rewardApplied = false;
+        
+        // Apply score reward
+        if (reward.score) {
+          score += reward.score;
+          rewardApplied = true;
+        }
+        
+        // Apply single worker reward
+        if (reward.worker) {
+          workers[reward.worker].unlocked = true;
+          rewardApplied = true;
+        }
+        
+        // Apply multiple workers reward
+        if (reward.workers) {
+          reward.workers.forEach(workerId => {
+            workers[workerId].unlocked = true;
+          });
+          rewardApplied = true;
+        }
+        
+        if (rewardApplied) {
+          usedCodes.push(code);
+          localStorage.setItem('usedCodes', JSON.stringify(usedCodes));
+          showMessage(reward.message, "green");
+          updateScore();
+          updateWorkersDisplay();
+          updateStoreButtons();
+          saveGame();
+        }
+      }
+      
+      codeInput.value = "";
+    });
+
+    resetButton.addEventListener('click', resetProgress);
+
+    // Game functions
+    function showMessage(msg, color) {
+      message.textContent = msg;
+      message.style.color = color;
+    }
+
+    function updateScore() {
+      scoreDisplay.textContent = 'Score: ' + score;
+      updateStoreButtons();
+    }
+
+    function updateWorkersDisplay() {
+      const unlocked = Object.keys(workers)
+        .filter(w => workers[w].unlocked)
+        .map(w => workers[w].name)
+        .join(', ');
+      workersDiv.textContent = 'Workers unlocked: ' + (unlocked || 'None');
+    }
+
+    function updateStoreButtons() {
+      storeItemsDiv.innerHTML = '';
+      for (const workerId in workers) {
+        const worker = workers[workerId];
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'store-item';
+        
+        const button = document.createElement('button');
+        button.textContent = `Buy ${worker.name} (${worker.cost} cookies)`;
+        button.disabled = score < worker.cost || worker.unlocked;
+        
+        button.addEventListener('click', () => {
+          if (score >= worker.cost && !worker.unlocked) {
+            score -= worker.cost;
+            worker.unlocked = true;
+            updateScore();
+            updateWorkersDisplay();
+            updateStoreButtons();
+            showMessage(`🎉 You bought the ${worker.name}! It adds ${worker.rate} cookies per second.`, "green");
+            saveGame();
+          }
+        });
+        
+        const desc = document.createElement('p');
+        desc.textContent = `${worker.description} (+${worker.rate}/sec)`;
+        desc.style.margin = '5px 0';
+        
+        const status = document.createElement('p');
+        status.textContent = worker.unlocked ? '✅ Purchased' : '❌ Not purchased';
+        status.style.margin = '5px 0';
+        status.style.color = worker.unlocked ? 'green' : 'red';
+        
+        itemDiv.appendChild(desc);
+        itemDiv.appendChild(button);
+        itemDiv.appendChild(status);
+        storeItemsDiv.appendChild(itemDiv);
+      }
+    }
+
+    // Save game state
+    function saveGame() {
+      localStorage.setItem('cookieScore', score);
+      
+      // Save workers state
+      const workersToSave = {};
+      for (const workerId in workers) {
+        workersToSave[workerId] = {
+          unlocked: workers[workerId].unlocked
+        };
+      }
+      localStorage.setItem('cookieWorkers', JSON.stringify(workersToSave));
+    }
+
+    // Auto-clicker functionality
+    setInterval(() => {
+      let totalRate = 0;
+      for (const w in workers) {
+        if (workers[w].unlocked) {
+          totalRate += workers[w].rate;
+        }
+      }
+      if (totalRate > 0) {
+        score += totalRate;
+        updateScore();
+        saveGame();
+      }
+    }, 1000);
+
+    // Start the game
+    initGame();
+  </script>
+</body>
+</html>
